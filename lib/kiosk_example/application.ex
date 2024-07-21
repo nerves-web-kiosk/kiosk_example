@@ -5,6 +5,8 @@ defmodule KioskExample.Application do
 
   use Application
 
+  @xdg_runtime_dir "/run"
+
   @impl true
   def start(_type, _args) do
     children =
@@ -34,6 +36,20 @@ defmodule KioskExample.Application do
       # Children for all targets except host
       # Starts a worker by calling: KioskExample.Worker.start_link(arg)
       # {KioskExample.Worker, arg},
+      {NervesWeston,
+       tty: 1,
+       xdg_runtime_dir: @xdg_runtime_dir,
+       name: :weston,
+       daemon_opts: [log_output: :info, stderr_to_stdout: true],
+       cli_args: ["--shell=kiosk-shell.so"]},
+      {NervesCog,
+       url: "http://localhost:4000/dev/dashboard/home",
+       fullscreen: true,
+       xdg_runtime_dir: @xdg_runtime_dir,
+       wayland_display: "wayland-1",
+       cli_args: ["--enable-write-console-messages-to-stdout=1"],
+       daemon_opts: [log_output: :info, stderr_to_stdout: true],
+       name: :cog}
     ]
   end
 end
