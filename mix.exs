@@ -10,8 +10,10 @@ defmodule KioskExample.MixProject do
       app: @app,
       version: @version,
       elixir: "~> 1.17",
+      elixirc_paths: elixirc_paths(Mix.env()),
       archives: [nerves_bootstrap: "~> 1.13"],
       start_permanent: Mix.env() == :prod,
+      aliases: aliases(),
       deps: deps(),
       releases: [{@app, release()}],
       preferred_cli_target: [run: :host, test: :host]
@@ -24,6 +26,14 @@ defmodule KioskExample.MixProject do
       extra_applications: [:logger, :runtime_tools, :os_mon],
       mod: {KioskExample.Application, []}
     ]
+  end
+
+  # Specifies which paths to compile per environment.
+  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(_), do: ["lib"]
+
+  def aliases() do
+    [] ++ phoenix_aliases()
   end
 
   # Run "mix help deps" to learn about dependencies.
@@ -49,7 +59,6 @@ defmodule KioskExample.MixProject do
        github: "coop/nerves_cog",
        ref: "3afb3ec73c67fb050d296b141476f45eab420a5c",
        targets: @all_targets},
-      {:example_ui, path: "../example_ui", targets: @all_targets, env: Mix.env()},
 
       # Dependencies for specific targets
       # NOTE: It's generally low risk and recommended to follow minor version
@@ -58,7 +67,7 @@ defmodule KioskExample.MixProject do
       # changes to your application are needed.
       {:kiosk_system_rpi4, "~> 0.1.0", runtime: false, targets: :rpi4},
       {:kiosk_system_rpi5, "~> 0.1.0", runtime: false, targets: :rpi5}
-    ]
+    ] ++ phoenix_deps()
   end
 
   def release do
@@ -70,6 +79,48 @@ defmodule KioskExample.MixProject do
       include_erts: &Nerves.Release.erts/0,
       steps: [&Nerves.Release.init/1, :assemble],
       strip_beams: Mix.env() == :prod or [keep: ["Docs"]]
+    ]
+  end
+
+  defp phoenix_deps() do
+    [
+      {:phoenix, "~> 1.7.14"},
+      {:phoenix_html, "~> 4.1"},
+      {:phoenix_live_reload, "~> 1.2", only: :dev},
+      # TODO bump on release to {:phoenix_live_view, "~> 1.0.0"},
+      {:phoenix_live_view, "~> 1.0.0-rc.1", override: true},
+      {:floki, ">= 0.30.0", only: :test},
+      {:phoenix_live_dashboard, "~> 0.8.3"},
+      {:esbuild, "~> 0.8", runtime: Mix.env() == :dev},
+      {:tailwind, "~> 0.2", runtime: Mix.env() == :dev},
+      {:heroicons,
+       github: "tailwindlabs/heroicons",
+       tag: "v2.1.1",
+       sparse: "optimized",
+       app: false,
+       compile: false,
+       depth: 1},
+      {:swoosh, "~> 1.5"},
+      {:finch, "~> 0.13"},
+      {:telemetry_metrics, "~> 1.0"},
+      {:telemetry_poller, "~> 1.0"},
+      {:gettext, "~> 0.20"},
+      {:jason, "~> 1.2"},
+      {:dns_cluster, "~> 0.1.1"},
+      {:bandit, "~> 1.5"}
+    ]
+  end
+
+  defp phoenix_aliases() do
+    [
+      setup: ["deps.get", "assets.setup", "assets.build"],
+      "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
+      "assets.build": ["tailwind kiosk_example", "esbuild kiosk_example"],
+      "assets.deploy": [
+        "tailwind kiosk_example --minify",
+        "esbuild kiosk_example --minify",
+        "phx.digest"
+      ]
     ]
   end
 end

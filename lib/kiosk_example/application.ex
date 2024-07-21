@@ -14,7 +14,7 @@ defmodule KioskExample.Application do
         # Children for all targets
         # Starts a worker by calling: KioskExample.Worker.start_link(arg)
         # {KioskExample.Worker, arg},
-      ] ++ children(Nerves.Runtime.mix_target())
+      ] ++ phoenix_children() ++ children(Nerves.Runtime.mix_target())
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
@@ -50,6 +50,20 @@ defmodule KioskExample.Application do
        cli_args: ["--enable-write-console-messages-to-stdout=1"],
        daemon_opts: [log_output: :info, stderr_to_stdout: true],
        name: :cog}
+    ]
+  end
+
+  defp phoenix_children() do
+    [
+      KioskExampleWeb.Telemetry,
+      {DNSCluster, query: Application.get_env(:kiosk_example, :dns_cluster_query) || :ignore},
+      {Phoenix.PubSub, name: KioskExample.PubSub},
+      # Start the Finch HTTP client for sending emails
+      {Finch, name: KioskExample.Finch},
+      # Start a worker by calling: KioskExample.Worker.start_link(arg)
+      # {KioskExample.Worker, arg},
+      # Start to serve requests, typically the last entry
+      KioskExampleWeb.Endpoint
     ]
   end
 end
