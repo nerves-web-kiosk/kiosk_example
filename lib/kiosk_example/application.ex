@@ -32,6 +32,11 @@ defmodule KioskExample.Application do
   end
 
   defp children(_target) do
+    # NOTE: work around to stop watchers on targets
+    Application.get_env(:kiosk_example, KioskExampleWeb.Endpoint)
+    |> Keyword.put(:watchers, [])
+    |> then(&Application.put_env(:kiosk_example, KioskExampleWeb.Endpoint, &1))
+
     [
       # Children for all targets except host
       # Starts a worker by calling: KioskExample.Worker.start_link(arg)
