@@ -51,14 +51,6 @@ defmodule KioskExample.MixProject do
 
       # Dependencies for all targets except :host
       {:nerves_pack, "~> 0.7.1", targets: @all_targets},
-      {:nerves_weston,
-       github: "fhunleth/nerves_weston",
-       ref: "7a14e51a23d3b63333d594f20515874496cf6584",
-       targets: @all_targets},
-      {:nerves_cog,
-       github: "coop/nerves_cog",
-       ref: "3afb3ec73c67fb050d296b141476f45eab420a5c",
-       targets: @all_targets},
 
       # Dependencies for specific targets
       # NOTE: It's generally low risk and recommended to follow minor version
