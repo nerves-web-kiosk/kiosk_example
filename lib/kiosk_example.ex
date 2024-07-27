@@ -3,16 +3,27 @@ defmodule KioskExample do
   Documentation for `KioskExample`.
   """
 
-  @doc """
-  Hello world.
+  def live_dashboard() do
+    change_url("http://localhost:4000/dev/dashboard/home/")
+  end
 
-  ## Examples
+  def phoenix_home() do
+    change_url("http://localhost:4000/")
+  end
 
-      iex> KioskExample.hello()
-      :world
+  def nerves_project_org() do
+    change_url("https://nerves-project.org/")
+  end
 
-  """
-  def hello do
-    :world
+  def phoenixframework_org() do
+    change_url("https://www.phoenixframework.org/")
+  end
+
+  def jerry_fish() do
+    change_url("https://akirodic.com/p/jellyfish/")
+  end
+
+  def change_url(url) do
+    KioskExample.WaylandApps.CogServer.restart_cog("--platform=wl #{url}")
   end
 end
