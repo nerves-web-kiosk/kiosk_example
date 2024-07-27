@@ -41,6 +41,7 @@ defmodule KioskExample.Application do
       # Children for all targets except host
       # Starts a worker by calling: KioskExample.Worker.start_link(arg)
       # {KioskExample.Worker, arg},
+      {KioskExample.WaylandAppsSupervisor, %{}}
     ]
   end
 
