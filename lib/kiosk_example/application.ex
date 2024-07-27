@@ -35,6 +35,8 @@ defmodule KioskExample.Application do
     |> Keyword.put(:watchers, [])
     |> then(&Application.put_env(:kiosk_example, KioskExampleWeb.Endpoint, &1))
 
+    start_node()
+
     [
       # Children for all targets except host
       # Starts a worker by calling: KioskExample.Worker.start_link(arg)
@@ -54,5 +56,11 @@ defmodule KioskExample.Application do
       # Start to serve requests, typically the last entry
       KioskExampleWeb.Endpoint
     ]
+  end
+
+  defp start_node() do
+    System.cmd("epmd", ~w"-daemon")
+    Node.start(:"kiosk_example@nerves.local")
+    Node.set_cookie(Application.get_env(:mix_tasks_upload_hotswap, :cookie))
   end
 end
