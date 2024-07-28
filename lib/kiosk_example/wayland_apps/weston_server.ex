@@ -32,11 +32,6 @@ defmodule KioskExample.WaylandApps.WestonServer do
      }}
   end
 
-  def terminate(reason, state) do
-    Process.exit(state.pid, :kill)
-    Logger.debug("#{__MODULE__} terminated by #{inspect(reason)}.")
-  end
-
   def handle_call(:start, _from, state) do
     {:reply, :ok, %{state | pid: start_weston(state.args, state.env)}}
   end
