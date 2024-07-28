@@ -67,13 +67,13 @@ defmodule KioskExample.WaylandApps.WestonServer do
   end
 
   defp start_weston(args, env) do
-    spawn_link(fn ->
-      MuonTrap.cmd("weston", ~w"#{args}",
-        env: env,
-        stderr_to_stdout: true,
-        into: IO.stream(:stdio, :line)
-      )
-    end)
+    MuonTrap.Daemon.start_link("weston", ~w"#{args}",
+      env: env,
+      stderr_to_stdout: true,
+      log_output: :debug,
+      log_prefix: "weston: "
+    )
+    |> then(fn {:ok, pid} -> pid end)
   end
 
   defp wait_for_device(dir_path, file_name, _wait_time, 0) do

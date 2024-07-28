@@ -28,13 +28,13 @@ defmodule KioskExample.UdevdServer do
   end
 
   defp start_udev(args, env) do
-    spawn_link(fn ->
-      MuonTrap.cmd("udevd", ~w"#{args}",
-        env: env,
-        stderr_to_stdout: true,
-        into: IO.stream(:stdio, :line)
-      )
-    end)
+    MuonTrap.Daemon.start_link("udevd", ~w"#{args}",
+      env: env,
+      stderr_to_stdout: true,
+      log_output: :debug,
+      log_prefix: "udevd: "
+    )
+    |> then(fn {:ok, pid} -> pid end)
   end
 
   defp udevadm(args) do

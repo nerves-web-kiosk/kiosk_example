@@ -63,12 +63,12 @@ defmodule KioskExample.WaylandApps.CogServer do
   end
 
   defp start_cog(args, env) do
-    spawn_link(fn ->
-      MuonTrap.cmd("cog", ~w"#{args}",
-        env: env,
-        stderr_to_stdout: true,
-        into: IO.stream(:stdio, :line)
-      )
-    end)
+    MuonTrap.Daemon.start_link("cog", ~w"#{args}",
+      env: env,
+      stderr_to_stdout: true,
+      log_output: :debug,
+      log_prefix: "cog: "
+    )
+    |> then(fn {:ok, pid} -> pid end)
   end
 end
