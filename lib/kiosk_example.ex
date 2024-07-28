@@ -19,7 +19,7 @@ defmodule KioskExample do
     change_url("https://www.phoenixframework.org/")
   end
 
-  def jerry_fish() do
+  def jellyfish() do
     change_url("https://akirodic.com/p/jellyfish/")
   end
 
