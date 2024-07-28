@@ -20,6 +20,8 @@ defmodule KioskExample.WaylandApps.CogServer do
     cog_env =
       Map.get(args, :cog_env, [{"XDG_RUNTIME_DIR", "/run"}, {"WAYLAND_DISPLAY", "wayland-1"}])
 
+    wait_for_display(cog_args, cog_env, _wait_time = 1000, _retry_count = 3)
+
     {:ok,
      %{
        pid: start_cog(cog_args, cog_env),
@@ -70,5 +72,41 @@ defmodule KioskExample.WaylandApps.CogServer do
       log_prefix: "cog: "
     )
     |> then(fn {:ok, pid} -> pid end)
+  end
+
+  defp wait_for_display(args, env, wait_time, retry_count) do
+    cond do
+      String.contains?(args, "--platform=wl") ->
+        xdg_runtime_dir = Enum.find_value(env, fn {"XDG_RUNTIME_DIR", v} -> v end)
+
+        if is_nil(xdg_runtime_dir) do
+          raise RuntimeError, "XDG_RUNTIME_DIR must be set for cog."
+        end
+
+        wait_for_device(xdg_runtime_dir, "^wayland-[0-9]$", wait_time, retry_count)
+
+      true ->
+        :noop
+    end
+  end
+
+  defp wait_for_device(dir_path, file_name, _wait_time, 0) do
+    raise RuntimeError, "#{file_name} doesn't exist in #{dir_path}."
+  end
+
+  defp wait_for_device(dir_path, file_name, wait_time, retry_count) when retry_count > 0 do
+    if device_exists?(dir_path, file_name) do
+      Logger.debug("#{file_name} exists in #{dir_path}.")
+    else
+      Process.sleep(wait_time)
+      wait_for_device(dir_path, file_name, wait_time, retry_count - 1)
+    end
+  end
+
+  defp device_exists?(dir_path, file_name) do
+    case File.ls(dir_path) do
+      {:ok, files} -> Enum.any?(files, &String.match?(&1, ~r/#{file_name}/))
+      {:error, _reason} -> false
+    end
   end
 end
