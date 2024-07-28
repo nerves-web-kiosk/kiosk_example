@@ -21,8 +21,8 @@ defmodule KioskExample.WaylandApps.WestonServer do
     weston_args = Map.get(args, :weston_args, "--shell=kiosk --continue-without-input")
     weston_env = Map.get(args, :weston_env, [{"XDG_RUNTIME_DIR", "/run"}])
 
-    wait_for_device("/dev/dri", "^card[0-9]$", _wait_time = 3000, _retry_count = 5)
-    wait_for_device("/dev", "^fb[0-9]$", _wait_time = 3000, _retry_count = 5)
+    wait_for_device("/dev/dri", ~r/^card[0-9]$/, _wait_time = 3000, _retry_count = 5)
+    wait_for_device("/dev", ~r/^fb[0-9]$/, _wait_time = 3000, _retry_count = 5)
 
     {:ok,
      %{
@@ -76,22 +76,23 @@ defmodule KioskExample.WaylandApps.WestonServer do
     |> then(fn {:ok, pid} -> pid end)
   end
 
-  defp wait_for_device(dir_path, file_name, _wait_time, 0) do
-    raise RuntimeError, "#{file_name} doesn't exist in #{dir_path}."
+  defp wait_for_device(dir_path, device_name_regex, _wait_time, 0) do
+    raise RuntimeError, "#{inspect(device_name_regex)} doesn't exist in #{dir_path}."
   end
 
-  defp wait_for_device(dir_path, file_name, wait_time, retry_count) when retry_count > 0 do
-    if device_exists?(dir_path, file_name) do
-      Logger.debug("#{file_name} exists in #{dir_path}.")
+  defp wait_for_device(dir_path, device_name_regex, wait_time, retry_count)
+       when retry_count > 0 do
+    if device_exists?(dir_path, device_name_regex) do
+      Logger.debug("Found #{inspect(device_name_regex)} in #{dir_path}.")
     else
       Process.sleep(wait_time)
-      wait_for_device(dir_path, file_name, wait_time, retry_count - 1)
+      wait_for_device(dir_path, device_name_regex, wait_time, retry_count - 1)
     end
   end
 
-  defp device_exists?(dir_path, file_name) do
+  defp device_exists?(dir_path, regex) do
     case File.ls(dir_path) do
-      {:ok, files} -> Enum.any?(files, &String.match?(&1, ~r/#{file_name}/))
+      {:ok, files} -> Enum.any?(files, &String.match?(&1, regex))
       {:error, _reason} -> false
     end
   end

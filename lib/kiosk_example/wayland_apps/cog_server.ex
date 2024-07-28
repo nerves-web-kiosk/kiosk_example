@@ -83,29 +83,30 @@ defmodule KioskExample.WaylandApps.CogServer do
           raise RuntimeError, "XDG_RUNTIME_DIR must be set for cog."
         end
 
-        wait_for_device(xdg_runtime_dir, "^wayland-[0-9]$", wait_time, retry_count)
+        wait_for_device(xdg_runtime_dir, ~r/^wayland-[0-9]$/, wait_time, retry_count)
 
       true ->
         :noop
     end
   end
 
-  defp wait_for_device(dir_path, file_name, _wait_time, 0) do
-    raise RuntimeError, "#{file_name} doesn't exist in #{dir_path}."
+  defp wait_for_device(dir_path, device_name_regex, _wait_time, 0) do
+    raise RuntimeError, "#{inspect(device_name_regex)} doesn't exist in #{dir_path}."
   end
 
-  defp wait_for_device(dir_path, file_name, wait_time, retry_count) when retry_count > 0 do
-    if device_exists?(dir_path, file_name) do
-      Logger.debug("#{file_name} exists in #{dir_path}.")
+  defp wait_for_device(dir_path, device_name_regex, wait_time, retry_count)
+       when retry_count > 0 do
+    if device_exists?(dir_path, device_name_regex) do
+      Logger.debug("Found #{inspect(device_name_regex)} in #{dir_path}.")
     else
       Process.sleep(wait_time)
-      wait_for_device(dir_path, file_name, wait_time, retry_count - 1)
+      wait_for_device(dir_path, device_name_regex, wait_time, retry_count - 1)
     end
   end
 
-  defp device_exists?(dir_path, file_name) do
+  defp device_exists?(dir_path, regex) do
     case File.ls(dir_path) do
-      {:ok, files} -> Enum.any?(files, &String.match?(&1, ~r/#{file_name}/))
+      {:ok, files} -> Enum.any?(files, &String.match?(&1, regex))
       {:error, _reason} -> false
     end
   end
