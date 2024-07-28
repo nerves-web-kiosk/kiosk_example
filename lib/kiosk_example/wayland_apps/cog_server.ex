@@ -72,13 +72,9 @@ defmodule KioskExample.WaylandApps.CogServer do
   defp wait_for_display(args, env, wait_time, retry_count) do
     cond do
       String.contains?(args, "--platform=wl") ->
-        xdg_runtime_dir = Enum.find_value(env, fn {"XDG_RUNTIME_DIR", v} -> v end)
-
-        if is_nil(xdg_runtime_dir) do
-          raise RuntimeError, "XDG_RUNTIME_DIR must be set for cog."
-        end
-
-        wait_for_device(xdg_runtime_dir, ~r/^wayland-[0-9]$/, wait_time, retry_count)
+        xdg_runtime_dir = get_env_value(env, "XDG_RUNTIME_DIR")
+        wayland_display = get_env_value(env, "WAYLAND_DISPLAY")
+        wait_for_device(xdg_runtime_dir, ~r/^#{wayland_display}$/, wait_time, retry_count)
 
       true ->
         :noop
@@ -104,5 +100,15 @@ defmodule KioskExample.WaylandApps.CogServer do
       {:ok, files} -> Enum.any?(files, &String.match?(&1, regex))
       {:error, _reason} -> false
     end
+  end
+
+  defp get_env_value(env, key) when is_list(env) do
+    value = Enum.find_value(env, fn {k, v} -> if k == key, do: v end)
+
+    if is_nil(value) do
+      raise RuntimeError, "#{key} must be set for cog."
+    end
+
+    value
   end
 end
