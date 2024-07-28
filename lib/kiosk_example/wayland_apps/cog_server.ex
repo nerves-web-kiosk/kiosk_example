@@ -20,14 +20,12 @@ defmodule KioskExample.WaylandApps.CogServer do
     cog_env =
       Map.get(args, :cog_env, [{"XDG_RUNTIME_DIR", "/run"}, {"WAYLAND_DISPLAY", "wayland-1"}])
 
-    wait_for_display(cog_args, cog_env, _wait_time = 1000, _retry_count = 3)
+    {:ok, %{pid: nil, args: cog_args, env: cog_env}, {:continue, :finish_init}}
+  end
 
-    {:ok,
-     %{
-       pid: start_cog(cog_args, cog_env),
-       args: cog_args,
-       env: cog_env
-     }}
+  def handle_continue(:finish_init, %{args: args, env: env} = state) do
+    wait_for_display(args, env, _wait_time = 1000, _retry_count = 3)
+    {:noreply, %{state | pid: start_cog(args, env)}}
   end
 
   def handle_call(:start, _from, state) do
