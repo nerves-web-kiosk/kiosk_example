@@ -5,7 +5,7 @@ defmodule KioskExample.Application do
 
   use Application
 
-  @impl true
+  @impl Application
   def start(_type, _args) do
     children =
       [

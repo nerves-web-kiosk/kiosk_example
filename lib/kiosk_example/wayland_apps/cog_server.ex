@@ -1,8 +1,10 @@
 defmodule KioskExample.WaylandApps.CogServer do
+  @moduledoc false
   use GenServer
 
   require Logger
 
+  @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(args), do: GenServer.start_link(__MODULE__, args, name: __MODULE__)
   def stop(), do: GenServer.stop(__MODULE__)
 
@@ -12,6 +14,7 @@ defmodule KioskExample.WaylandApps.CogServer do
   def restart_cog(args), do: GenServer.call(__MODULE__, {:restart, args})
   def restart_cog(args, env), do: GenServer.call(__MODULE__, {:restart, args, env})
 
+  @impl GenServer
   def init(args) do
     Process.flag(:trap_exit, true)
 
@@ -23,11 +26,13 @@ defmodule KioskExample.WaylandApps.CogServer do
     {:ok, %{pid: nil, args: cog_args, env: cog_env}, {:continue, :finish_init}}
   end
 
+  @impl GenServer
   def handle_continue(:finish_init, %{args: args, env: env} = state) do
     wait_for_display(args, env, _wait_time = 1000, _retry_count = 3)
     {:noreply, %{state | pid: start_cog(args, env)}}
   end
 
+  @impl GenServer
   def handle_call(:start, _from, state) do
     {:reply, :ok, %{state | pid: start_cog(state.args, state.env)}}
   end
@@ -52,6 +57,7 @@ defmodule KioskExample.WaylandApps.CogServer do
     {:reply, :ok, %{state | pid: start_cog(args, env), args: args, env: env}}
   end
 
+  @impl GenServer
   def handle_info({:EXIT, pid, reason}, state) when reason in [:killed] do
     Logger.debug("cog (#{inspect(pid)}) exited by #{inspect(reason)}.")
     {:noreply, state}

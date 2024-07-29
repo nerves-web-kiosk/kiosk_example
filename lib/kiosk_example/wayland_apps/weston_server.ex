@@ -1,8 +1,10 @@
 defmodule KioskExample.WaylandApps.WestonServer do
+  @moduledoc false
   use GenServer
 
   require Logger
 
+  @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(args) do
     GenServer.start_link(__MODULE__, args, name: __MODULE__, timeout: 15_000)
   end
@@ -15,6 +17,7 @@ defmodule KioskExample.WaylandApps.WestonServer do
   def restart_weston(args), do: GenServer.call(__MODULE__, {:restart, args})
   def restart_weston(args, env), do: GenServer.call(__MODULE__, {:restart, args, env})
 
+  @impl GenServer
   def init(args) do
     Process.flag(:trap_exit, true)
 
@@ -32,6 +35,7 @@ defmodule KioskExample.WaylandApps.WestonServer do
      }}
   end
 
+  @impl GenServer
   def handle_call(:start, _from, state) do
     {:reply, :ok, %{state | pid: start_weston(state.args, state.env)}}
   end
@@ -56,6 +60,7 @@ defmodule KioskExample.WaylandApps.WestonServer do
     {:reply, :ok, %{state | pid: start_weston(args, env), args: args, env: env}}
   end
 
+  @impl GenServer
   def handle_info({:EXIT, pid, reason}, state) when reason in [:killed] do
     Logger.debug("weston (#{inspect(pid)}) exited by #{inspect(reason)}.")
     {:noreply, state}
