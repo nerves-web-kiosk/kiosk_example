@@ -1,0 +1,203 @@
+defaults: &defaults
+  docker:
+    - image: hexpm/elixir:1.17.2-erlang-27.0-ubuntu-jammy-20240530
+  environment:
+    MIX_ENV: prod
+
+install_fwup: &install_fwup
+  run:
+    name: Install fwup
+    command: |
+      wget https://github.com/fwup-home/fwup/releases/download/v1.10.1/fwup_1.10.1_amd64.deb
+      dpkg -i fwup_1.10.1_amd64.deb
+
+install_system_deps: &install_system_deps
+  run:
+    name: Install system dependencies
+    command: |
+      apt update
+      apt install -y libmnl-dev libnl-genl-3-dev build-essential automake autoconf git squashfs-tools pkg-config curl wget file zip jq
+
+install_hex_rebar: &install_hex_rebar
+  run:
+    name: Install Hex, Rebar, nerves_bootstrap
+    command: |
+      mix local.hex --force
+      mix local.rebar --force
+      mix archive.install hex nerves_bootstrap --force
+
+install_gh_cli: &install_gh_cli
+  run:
+    name: Install github CLI tools
+    command: |
+      apt update
+      apt install -y curl
+      curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+      chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+      echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+      apt update
+      apt install -y gh
+
+build: &build
+  steps:
+    - checkout
+    - <<: *install_system_deps
+    - <<: *install_fwup
+    - <<: *install_hex_rebar
+    - run: echo "$MIX_TARGET" > .target
+    - run:
+        name: Fetch Deps
+        command: |
+          n=0
+          until [ $n -ge 5 ]; do
+            mix deps.get && break
+            n=$((n+1))
+            echo "Error while fetching deps. Retrying in 5 seconds"
+            sleep 5
+          done
+    - run:
+        name: Check formatting
+        command: mix format --check-formatted
+    - run:
+        name: Build
+        command: mix compile
+    - run:
+        name: Create firmware
+        command: |
+          mix firmware.image
+    - run:
+          name: Create artifacts dir
+          command: mkdir -p ~/deploy/artifacts
+    - run:
+        name: Copy firmware file
+        command: |
+          cp _build/*/nerves/images/*.fw ~/deploy/artifacts/kiosk_example_${MIX_TARGET}.fw
+          zip kiosk_example_${MIX_TARGET}.zip kiosk_example.img
+          cp kiosk_example_${MIX_TARGET}.zip ~/deploy/artifacts
+          cp ./CHANGELOG.md ~/deploy/CHANGELOG.md
+    - store_artifacts:
+        path: ~/deploy
+        destination: images
+    - save_cache:
+        key: nerves/deploy/{{ checksum ".target" }}-{{ .Revision }}-{{ .Environment.CIRCLE_TAG }}
+        paths:
+          - ~/deploy
+
+build_grisp2: &build_grisp2
+  steps:
+    - checkout
+    - <<: *install_system_deps
+    - <<: *install_fwup
+    - <<: *install_hex_rebar
+    - run: echo "$MIX_TARGET" > .target
+    - run:
+        name: Fetch Deps
+        command: |
+          n=0
+          until [ $n -ge 5 ]; do
+            mix deps.get && break
+            n=$((n+1))
+            echo "Error while fetching deps. Retrying in 5 seconds"
+            sleep 5
+          done
+    - run:
+        name: Check formatting
+        command: mix format --check-formatted
+    - run:
+        name: Build
+        command: mix compile
+    - run:
+        name: Create firmware
+        command: |
+          mix firmware.image
+    - run:
+          name: Create artifacts dir
+          command: mkdir -p ~/deploy/artifacts
+    - run:
+        name: Copy firmware file
+        command: |
+          cp _build/*/nerves/images/*.fw ~/deploy/artifacts/kiosk_example_${MIX_TARGET}.fw
+          gzip -k kiosk_example.img
+          cp kiosk_example.img.gz ~/deploy/artifacts/kiosk_example_${MIX_TARGET}.img.gz
+          cp ./CHANGELOG.md ~/deploy/CHANGELOG.md
+    - store_artifacts:
+        path: ~/deploy
+        destination: images
+    - save_cache:
+        key: nerves/deploy/{{ checksum ".target" }}-{{ .Revision }}-{{ .Environment.CIRCLE_TAG }}
+        paths:
+          - ~/deploy
+
+version: 2.0
+
+jobs:
+  build_rpi5:
+    <<: *defaults
+    environment:
+      MIX_TARGET: rpi5
+    <<: *build
+
+  build_rpi4:
+    <<: *defaults
+    environment:
+      MIX_TARGET: rpi4
+    <<: *build
+
+  deploy:
+    <<: *defaults
+    steps:
+      - checkout
+      - <<: *install_gh_cli
+      - run:
+          name: Create Artifacts Dir
+          command: mkdir -p ~/deploy
+      - run:
+          name: rpi5
+          command: echo "rpi5" > .target
+      - restore_cache:
+          key: nerves/deploy/{{ checksum ".target" }}-{{ .Revision }}-{{ .Environment.CIRCLE_TAG }}
+      - run:
+          name: rpi4
+          command: echo "rpi4" > .target
+      - restore_cache:
+          key: nerves/deploy/{{ checksum ".target" }}-{{ .Revision }}-{{ .Environment.CIRCLE_TAG }}
+      - run:
+          name: Create release notes - FAILS if tag isn't in CHANGELOG.md
+          command: awk -v tag="## ${CIRCLE_TAG}" 'BEGIN {found=0} $0 ~ tag {found=1; next} found && /^##/ {found=0} found {print}' ~/deploy/CHANGELOG.md | sed '/./,$!d' > ~/deploy/RELEASE_NOTES
+      - store_artifacts:
+          path: ~/deploy
+          destination: images
+      - run:
+          name: Create a draft release on Github
+          command: gh release create $CIRCLE_TAG -F ~/deploy/RELEASE_NOTES --repo $CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME --draft --verify-tag
+      - run:
+          name: Upload artifacts to Github
+          command: gh release upload $CIRCLE_TAG ~/deploy/artifacts/* --repo $CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME
+      - run:
+          name: Make it official
+          command: gh release edit $CIRCLE_TAG --repo $CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME --draft=false
+
+workflows:
+  version: 2
+  build_deploy:
+    jobs:
+      - build_rpi5:
+          context: org-global
+          filters:
+            tags:
+              only: /.*/
+      - build_rpi4:
+          context: org-global
+          filters:
+            tags:
+              only: /.*/
+      - deploy:
+          context: org-global
+          requires:
+            - build_rpi5
+            - build_rpi4
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /v.*/
