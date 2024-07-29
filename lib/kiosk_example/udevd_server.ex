@@ -1,10 +1,13 @@
 defmodule KioskExample.UdevdServer do
+  @moduledoc false
   use GenServer
 
   require Logger
 
+  @spec start_link(map()) :: GenServer.on_start()
   def start_link(args), do: GenServer.start_link(__MODULE__, args, name: __MODULE__)
 
+  @impl GenServer
   def init(_args) do
     Process.flag(:trap_exit, true)
 
@@ -17,6 +20,7 @@ defmodule KioskExample.UdevdServer do
     {:ok, %{pid: pid}}
   end
 
+  @impl GenServer
   def handle_info({:EXIT, pid, reason}, state) do
     if pid == state.pid do
       Logger.error("udevd (#{inspect(pid)}) exited by #{inspect(reason)}.")

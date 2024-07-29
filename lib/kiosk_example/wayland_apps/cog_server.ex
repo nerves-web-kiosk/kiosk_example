@@ -4,14 +4,25 @@ defmodule KioskExample.WaylandApps.CogServer do
 
   require Logger
 
-  @spec start_link(keyword()) :: GenServer.on_start()
+  @spec start_link(map()) :: GenServer.on_start()
   def start_link(args), do: GenServer.start_link(__MODULE__, args, name: __MODULE__)
+
+  @spec stop() :: :ok
   def stop(), do: GenServer.stop(__MODULE__)
 
+  @spec start_cog() :: :ok
   def start_cog(), do: GenServer.call(__MODULE__, :start)
+
+  @spec stop_cog() :: :ok
   def stop_cog(), do: GenServer.call(__MODULE__, :stop)
+
+  @spec restart_cog() :: :ok
   def restart_cog(), do: GenServer.call(__MODULE__, :restart)
+
+  @spec restart_cog(String.t()) :: :ok
   def restart_cog(args), do: GenServer.call(__MODULE__, {:restart, args})
+
+  @spec restart_cog(String.t(), [{String.t(), String.t()}]) :: :ok
   def restart_cog(args, env), do: GenServer.call(__MODULE__, {:restart, args, env})
 
   @impl GenServer
@@ -74,6 +85,7 @@ defmodule KioskExample.WaylandApps.CogServer do
   end
 
   defp wait_for_display(args, env, wait_time, retry_count) do
+    # credo:disable-for-next-line
     cond do
       String.contains?(args, "--platform=wl") ->
         xdg_runtime_dir = get_env_value(env, "XDG_RUNTIME_DIR")
