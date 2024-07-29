@@ -4,17 +4,27 @@ defmodule KioskExample.WaylandApps.WestonServer do
 
   require Logger
 
-  @spec start_link(keyword()) :: GenServer.on_start()
+  @spec start_link(map) :: GenServer.on_start()
   def start_link(args) do
     GenServer.start_link(__MODULE__, args, name: __MODULE__, timeout: 15_000)
   end
 
+  @spec stop() :: :ok
   def stop(), do: GenServer.stop(__MODULE__)
 
+  @spec start_weston() :: :ok
   def start_weston(), do: GenServer.call(__MODULE__, :start)
+
+  @spec stop_weston() :: :ok
   def stop_weston(), do: GenServer.call(__MODULE__, :stop)
+
+  @spec restart_weston() :: :ok
   def restart_weston(), do: GenServer.call(__MODULE__, :restart)
+
+  @spec restart_weston(String.t()) :: :ok
   def restart_weston(args), do: GenServer.call(__MODULE__, {:restart, args})
+
+  @spec restart_weston(String.t(), [{String.t(), String.t()}]) :: :ok
   def restart_weston(args, env), do: GenServer.call(__MODULE__, {:restart, args, env})
 
   @impl GenServer
