@@ -3,20 +3,26 @@ defmodule KioskExample.MixProject do
 
   @app :kiosk_example
   @version "0.1.0"
+  @source_url "https://github.com/nerves-web-kiosk/kiosk_example"
+
   @all_targets [:rpi4, :rpi5]
 
   def project do
     [
       app: @app,
       version: @version,
+      source_url: @source_url,
       elixir: "~> 1.17",
       elixirc_paths: elixirc_paths(Mix.env()),
       archives: [nerves_bootstrap: "~> 1.13"],
       start_permanent: Mix.env() == :prod,
+      dialyzer: dialyzer(),
       aliases: aliases(),
       deps: deps(),
+      docs: docs(),
       releases: [{@app, release()}],
-      preferred_cli_target: [run: :host, test: :host]
+      preferred_cli_env: %{ docs: :docs },
+      preferred_cli_target: %{run: :host, test: :host}
     ]
   end
 
@@ -39,6 +45,11 @@ defmodule KioskExample.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      # Compile-time tools
+      {:ex_doc, "~> 0.22", only: :docs, runtime: false},
+      {:credo, "~> 1.6", only: :dev, runtime: false},
+      {:dialyxir, "~> 1.2", only: :dev, runtime: false},
+
       # Dependencies for all targets
       {:nerves, "~> 1.10", runtime: false},
       {:shoehorn, "~> 0.9.1"},
@@ -62,6 +73,21 @@ defmodule KioskExample.MixProject do
       {:kiosk_system_rpi4, "~> 0.1.0", runtime: false, targets: :rpi4},
       {:kiosk_system_rpi5, "~> 0.1.0", runtime: false, targets: :rpi5}
     ] ++ phoenix_deps()
+  end
+
+  defp dialyzer() do
+    [
+      flags: [:missing_return, :extra_return, :unmatched_returns, :error_handling, :underspecs],
+      list_unused_filters: true,
+      plt_file: {:no_warn, "_build/plts/dialyzer.plt"}
+    ]
+  end
+
+  defp docs do
+    [
+      source_ref: "v#{@version}",
+      source_url: @source_url
+    ]
   end
 
   def release do
