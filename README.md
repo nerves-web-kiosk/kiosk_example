@@ -23,3 +23,7 @@ Then,
 1. Boot it!!
 
 You will see Phoenix LiveDashboard on your display!!!
+
+You can change the URL to use `KioskExample.change_url("http://example.com")`.
+
+And there are some functions in `KioskExample` module which lead browser to famous URL. Enjoy!!
