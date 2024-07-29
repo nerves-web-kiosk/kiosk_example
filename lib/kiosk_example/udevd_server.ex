@@ -7,6 +7,14 @@ defmodule KioskExample.UdevdServer do
   @spec start_link(map()) :: GenServer.on_start()
   def start_link(args), do: GenServer.start_link(__MODULE__, args, name: __MODULE__)
 
+  @spec udevadm(String.t()) :: {Collectable.t(), exit_status :: non_neg_integer() | :timeout}
+  def udevadm(args) do
+    MuonTrap.cmd("udevadm", ~w"#{args}",
+      stderr_to_stdout: true,
+      into: IO.stream(:stdio, :line)
+    )
+  end
+
   @impl GenServer
   def init(_args) do
     Process.flag(:trap_exit, true)
@@ -39,12 +47,5 @@ defmodule KioskExample.UdevdServer do
       log_prefix: "udevd: "
     )
     |> then(fn {:ok, pid} -> pid end)
-  end
-
-  defp udevadm(args) do
-    MuonTrap.cmd("udevadm", ~w"#{args}",
-      stderr_to_stdout: true,
-      into: IO.stream(:stdio, :line)
-    )
   end
 end
