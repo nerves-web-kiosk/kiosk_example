@@ -12,7 +12,7 @@ defmodule KioskExample.Application do
         # Children for all targets
         # Starts a worker by calling: KioskExample.Worker.start_link(arg)
         # {KioskExample.Worker, arg},
-      ] ++ phoenix_children() ++ children(Nerves.Runtime.mix_target())
+      ] ++ phoenix_children() ++ children()
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
@@ -21,28 +21,36 @@ defmodule KioskExample.Application do
   end
 
   # List all child processes to be supervised
-  defp children(:host) do
-    [
-      # Children that only run on the host
-      # Starts a worker by calling: KioskExample.Worker.start_link(arg)
-      # {KioskExample.Worker, arg},
-    ]
-  end
+  if Mix.target() == :host do
+    defp children() do
+      [
+        # Children that only run on the host
+        # Starts a worker by calling: KioskExample.Worker.start_link(arg)
+        # {KioskExample.Worker, arg},
+      ]
+    end
+  else
+    defp children() do
+      # NOTE: work around to stop watchers on targets
+      Application.get_env(:kiosk_example, KioskExampleWeb.Endpoint)
+      |> Keyword.put(:watchers, [])
+      |> then(&Application.put_env(:kiosk_example, KioskExampleWeb.Endpoint, &1))
 
-  defp children(_target) do
-    # NOTE: work around to stop watchers on targets
-    Application.get_env(:kiosk_example, KioskExampleWeb.Endpoint)
-    |> Keyword.put(:watchers, [])
-    |> then(&Application.put_env(:kiosk_example, KioskExampleWeb.Endpoint, &1))
+      start_node()
 
-    start_node()
+      [
+        # Children for all targets except host
+        # Starts a worker by calling: KioskExample.Worker.start_link(arg)
+        # {KioskExample.Worker, arg},
+        {KioskExample.DisplaySupervisor, %{}}
+      ]
+    end
 
-    [
-      # Children for all targets except host
-      # Starts a worker by calling: KioskExample.Worker.start_link(arg)
-      # {KioskExample.Worker, arg},
-      {KioskExample.DisplaySupervisor, %{}}
-    ]
+    defp start_node() do
+      {_, 0} = System.cmd("epmd", ~w"-daemon")
+      {:ok, _pid} = Node.start(:"kiosk_example@nerves.local")
+      Node.set_cookie(Application.get_env(:mix_tasks_upload_hotswap, :cookie))
+    end
   end
 
   defp phoenix_children() do
@@ -57,11 +65,5 @@ defmodule KioskExample.Application do
       # Start to serve requests, typically the last entry
       KioskExampleWeb.Endpoint
     ]
-  end
-
-  defp start_node() do
-    System.cmd("epmd", ~w"-daemon")
-    Node.start(:"kiosk_example@nerves.local")
-    Node.set_cookie(Application.get_env(:mix_tasks_upload_hotswap, :cookie))
   end
 end
