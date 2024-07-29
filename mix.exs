@@ -21,7 +21,7 @@ defmodule KioskExample.MixProject do
       deps: deps(),
       docs: docs(),
       releases: [{@app, release()}],
-      preferred_cli_env: %{ docs: :docs },
+      preferred_cli_env: %{docs: :docs},
       preferred_cli_target: %{run: :host, test: :host}
     ]
   end
