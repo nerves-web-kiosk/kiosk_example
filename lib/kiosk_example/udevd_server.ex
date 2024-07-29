@@ -9,7 +9,7 @@ defmodule KioskExample.UdevdServer do
 
   @spec udevadm(String.t()) :: {Collectable.t(), exit_status :: non_neg_integer() | :timeout}
   def udevadm(args) do
-    MuonTrap.cmd("udevadm", ~w"#{args}",
+    MuonTrap.cmd("udevadm", String.split(args),
       stderr_to_stdout: true,
       into: IO.stream(:stdio, :line)
     )
@@ -21,9 +21,9 @@ defmodule KioskExample.UdevdServer do
 
     pid = start_udev("", [])
 
-    udevadm("trigger --type=subsystems --action=add")
-    udevadm("trigger --type=devices --action=add")
-    udevadm("settle --timeout=30")
+    _ = udevadm("trigger --type=subsystems --action=add")
+    _ = udevadm("trigger --type=devices --action=add")
+    _ = udevadm("settle --timeout=30")
 
     {:ok, %{pid: pid}}
   end
