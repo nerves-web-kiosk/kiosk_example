@@ -4,7 +4,7 @@ defmodule KioskExample.WaylandApps.CogServer do
 
   require Logger
 
-  @spec start_link(map()) :: GenServer.on_start()
+  @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(args), do: GenServer.start_link(__MODULE__, args, name: __MODULE__)
 
   @spec stop() :: :ok
@@ -29,10 +29,11 @@ defmodule KioskExample.WaylandApps.CogServer do
   def init(args) do
     Process.flag(:trap_exit, true)
 
-    cog_args = Map.get(args, :cog_args, "--platform=wl http://localhost:4000/dev/dashboard/home")
+    cog_args =
+      Keyword.get(args, :cog_args, "--platform=wl http://localhost:4000/dev/dashboard/home")
 
     cog_env =
-      Map.get(args, :cog_env, [{"XDG_RUNTIME_DIR", "/run"}, {"WAYLAND_DISPLAY", "wayland-1"}])
+      Keyword.get(args, :cog_env, [{"XDG_RUNTIME_DIR", "/run"}, {"WAYLAND_DISPLAY", "wayland-1"}])
 
     {:ok, %{pid: nil, args: cog_args, env: cog_env}, {:continue, :finish_init}}
   end
