@@ -1,8 +1,7 @@
 defaults: &defaults
   docker:
     - image: hexpm/elixir:1.17.2-erlang-27.0-ubuntu-jammy-20240530
-  environment:
-    MIX_ENV: prod
+  resource_class: large
 
 install_fwup: &install_fwup
   run:
@@ -38,6 +37,35 @@ install_gh_cli: &install_gh_cli
       apt update
       apt install -y gh
 
+host_build: &host_build
+  steps:
+    - checkout
+    - <<: *install_system_deps
+    - <<: *install_hex_rebar
+    - run:
+        name: Install vintage_net deps
+        command: apt install -y libmnl-dev libnl-3-dev libnl-genl-3-dev
+    - run:
+        name: Fetch Deps
+        command: |
+          n=0
+          until [ $n -ge 5 ]; do
+            mix deps.get && break
+            n=$((n+1))
+            echo "Error while fetching deps. Retrying in 5 seconds"
+            sleep 5
+          done
+    - run:
+        name: Credo
+        command: mix credo -a --strict
+    - run:
+        name: Dialyzer
+        command: mix dialyzer
+    - save_cache:
+        key: nerves/deploy/host-{{ .Revision }}-{{ .Environment.CIRCLE_TAG }}
+        paths:
+          - ~/deploy
+
 build: &build
   steps:
     - checkout
@@ -60,11 +88,11 @@ build: &build
         command: mix format --check-formatted
     - run:
         name: Build
-        command: mix compile
+        command: MIX_ENV=prod mix compile
     - run:
         name: Create firmware
         command: |
-          mix firmware.image
+          MIX_ENV=prod mix firmware.image
     - run:
           name: Create artifacts dir
           command: mkdir -p ~/deploy/artifacts
@@ -86,6 +114,10 @@ build: &build
 version: 2.0
 
 jobs:
+  build_host:
+    <<: *defaults
+    <<: *host_build
+
   build_rpi5:
     <<: *defaults
     environment:
@@ -136,19 +168,21 @@ workflows:
   version: 2
   build_deploy:
     jobs:
+      - build_host:
+          filters:
+            tags:
+              only: /.*/
       - build_rpi5:
-          context: org-global
           filters:
             tags:
               only: /.*/
       - build_rpi4:
-          context: org-global
           filters:
             tags:
               only: /.*/
       - deploy:
-          context: org-global
           requires:
+            - build_host
             - build_rpi5
             - build_rpi4
           filters:
