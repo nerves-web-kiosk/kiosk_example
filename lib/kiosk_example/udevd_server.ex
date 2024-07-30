@@ -4,7 +4,7 @@ defmodule KioskExample.UdevdServer do
 
   require Logger
 
-  @spec start_link(map()) :: GenServer.on_start()
+  @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(args), do: GenServer.start_link(__MODULE__, args, name: __MODULE__)
 
   @spec udevadm(String.t()) :: {Collectable.t(), exit_status :: non_neg_integer() | :timeout}
