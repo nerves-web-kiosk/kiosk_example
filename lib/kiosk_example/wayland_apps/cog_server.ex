@@ -86,15 +86,10 @@ defmodule KioskExample.WaylandApps.CogServer do
   end
 
   defp wait_for_display(args, env, wait_time, retry_count) do
-    # credo:disable-for-next-line
-    cond do
-      String.contains?(args, "--platform=wl") ->
-        xdg_runtime_dir = get_env_value(env, "XDG_RUNTIME_DIR")
-        wayland_display = get_env_value(env, "WAYLAND_DISPLAY")
-        wait_for_device(xdg_runtime_dir, ~r/^#{wayland_display}$/, wait_time, retry_count)
-
-      true ->
-        :noop
+    if String.contains?(args, "--platform=wl") do
+      xdg_runtime_dir = get_env_value(env, "XDG_RUNTIME_DIR")
+      wayland_display = get_env_value(env, "WAYLAND_DISPLAY")
+      wait_for_device(xdg_runtime_dir, ~r/^#{wayland_display}$/, wait_time, retry_count)
     end
   end
 
