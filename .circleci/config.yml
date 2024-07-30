@@ -83,51 +83,6 @@ build: &build
         paths:
           - ~/deploy
 
-build_grisp2: &build_grisp2
-  steps:
-    - checkout
-    - <<: *install_system_deps
-    - <<: *install_fwup
-    - <<: *install_hex_rebar
-    - run: echo "$MIX_TARGET" > .target
-    - run:
-        name: Fetch Deps
-        command: |
-          n=0
-          until [ $n -ge 5 ]; do
-            mix deps.get && break
-            n=$((n+1))
-            echo "Error while fetching deps. Retrying in 5 seconds"
-            sleep 5
-          done
-    - run:
-        name: Check formatting
-        command: mix format --check-formatted
-    - run:
-        name: Build
-        command: mix compile
-    - run:
-        name: Create firmware
-        command: |
-          mix firmware.image
-    - run:
-          name: Create artifacts dir
-          command: mkdir -p ~/deploy/artifacts
-    - run:
-        name: Copy firmware file
-        command: |
-          cp _build/*/nerves/images/*.fw ~/deploy/artifacts/kiosk_example_${MIX_TARGET}.fw
-          gzip -k kiosk_example.img
-          cp kiosk_example.img.gz ~/deploy/artifacts/kiosk_example_${MIX_TARGET}.img.gz
-          cp ./CHANGELOG.md ~/deploy/CHANGELOG.md
-    - store_artifacts:
-        path: ~/deploy
-        destination: images
-    - save_cache:
-        key: nerves/deploy/{{ checksum ".target" }}-{{ .Revision }}-{{ .Environment.CIRCLE_TAG }}
-        paths:
-          - ~/deploy
-
 version: 2.0
 
 jobs:
