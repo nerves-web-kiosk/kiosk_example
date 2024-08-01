@@ -18,6 +18,7 @@ defmodule KioskExampleWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+    live "/gpio", GPIOLive
   end
 
   # Other scopes may use custom stacks.
