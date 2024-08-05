@@ -24,11 +24,13 @@ defmodule KioskExampleWeb.GPIOLive do
   end
 
   def mount(_params, _session, socket) do
-    gpios =
-      enumerate_gpio()
-      |> Enum.reduce(%{}, fn %{label: label}, acc -> Map.put(acc, label, 0) end)
+    initial_value = 0
 
-    Enum.each(gpios, fn {label, value} -> :ok = write_gpio(label, value) end)
+    gpios =
+      for %{label: label} <- enumerate_gpio(), into: %{} do
+        :ok = write_gpio(label, initial_value)
+        {label, initial_value}
+      end
 
     {:ok, assign(socket, :gpios, gpios)}
   end
