@@ -48,7 +48,7 @@ defmodule KioskExampleWeb.GPIOLive do
     defp enumerate_gpio() do
       2..27
       |> Enum.map(&%{label: "GPIO#{&1}"})
-      |> Enum.reject(fn %{label: label} -> label in ["GPIO7", "GPIO8"] end)
+      |> reject_already_used_gpios()
     end
 
     defp write_gpio(_label, _value) do
@@ -58,12 +58,16 @@ defmodule KioskExampleWeb.GPIOLive do
     defp enumerate_gpio() do
       Circuits.GPIO.enumerate()
       |> Enum.filter(fn %{label: label} -> String.starts_with?(label, "GPIO") end)
-      |> Enum.reject(fn %{label: label} -> label in ["GPIO7", "GPIO8"] end)
+      |> reject_already_used_gpios()
     end
 
     defp write_gpio(label, value) do
       Circuits.GPIO.write_one(label, value)
     end
+  end
+
+  defp reject_already_used_gpios(gpios) do
+    Enum.reject(gpios, fn %{label: label} -> label in ["GPIO7", "GPIO8"] end)
   end
 
   defp bg_color(0), do: "bg-gray-200"
