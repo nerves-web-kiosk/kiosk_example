@@ -9,7 +9,7 @@ defmodule KioskExampleWeb.GPIOLive do
 
   def render(assigns) do
     ~H"""
-    <div id="gpio-button-list" class="grid grid-rows-10 grid-flow-col gap-4">
+    <div class="grid grid-rows-10 grid-flow-col gap-4">
       <%= for %{label: label} <- enumerate_gpio() do %>
         <button
           class={["p-3 rounded-md", bg_color(Map.get(@gpios, label))]}
