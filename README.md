@@ -24,6 +24,7 @@ Then,
 
 You will see Phoenix LiveDashboard on your display!!!
 
-You can change the URL to use `KioskExample.change_url("http://example.com")`.
+You can change the URL to use `KioskExample.change_url("http://example.com")`
+on IEx console over SSH.
 
 And there are some functions in `KioskExample` module which lead browser to famous URL. Enjoy!!
