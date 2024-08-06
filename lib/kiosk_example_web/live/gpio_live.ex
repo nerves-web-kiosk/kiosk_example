@@ -12,6 +12,7 @@ defmodule KioskExampleWeb.GPIOLive do
     <div class="grid grid-rows-10 grid-flow-col gap-4">
       <%= for %{label: label} <- enumerate_gpio() do %>
         <button
+          id={"gpio-button-#{label}"}
           class={["p-3 rounded-md", bg_color(Map.get(@gpios, label))]}
           phx-click="push"
           value={label}
