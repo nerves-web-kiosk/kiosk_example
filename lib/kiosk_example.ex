@@ -13,6 +13,14 @@ defmodule KioskExample do
   end
 
   @doc """
+  Go to the gpio page
+  """
+  @spec gpio() :: :ok
+  def gpio() do
+    change_url("http://localhost:4000/gpio")
+  end
+
+  @doc """
   Go to the Phoenix LiveDashboard
   """
   @spec live_dashboard() :: :ok
