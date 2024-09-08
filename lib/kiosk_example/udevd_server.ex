@@ -7,36 +7,20 @@ defmodule KioskExample.UdevdServer do
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(args), do: GenServer.start_link(__MODULE__, args, name: __MODULE__)
 
-  @spec udevadm(String.t()) :: {Collectable.t(), exit_status :: non_neg_integer() | :timeout}
+  @spec udevadm(String.t()) :: {Collectable.t(), exit_status :: non_neg_integer()}
   def udevadm(args) do
-    MuonTrap.cmd("udevadm", String.split(args),
-      stderr_to_stdout: true,
-      into: IO.stream(:stdio, :line)
-    )
+    System.shell("udevadm #{args}", stderr_to_stdout: true, into: IO.stream(:stdio, :line))
   end
 
   @impl GenServer
   def init(_args) do
-    Process.flag(:trap_exit, true)
-
     pid = start_udev("", [])
 
-    _ = udevadm("trigger --type=subsystems --action=add")
-    _ = udevadm("trigger --type=devices --action=add")
-    _ = udevadm("settle --timeout=30")
+    {_, 0} = udevadm("trigger --type=subsystems --action=add")
+    {_, 0} = udevadm("trigger --type=devices --action=add")
+    {_, 0} = udevadm("settle --timeout=30")
 
     {:ok, %{pid: pid}}
-  end
-
-  @impl GenServer
-  def handle_info({:EXIT, pid, reason}, state) do
-    if pid == state.pid do
-      Logger.error("udevd (#{inspect(pid)}) exited by #{inspect(reason)}.")
-      {:stop, :unexpected, state}
-    else
-      Logger.debug("udevadm (#{inspect(pid)}) exited by #{inspect(reason)}.")
-      {:noreply, state}
-    end
   end
 
   defp start_udev(args, env) do
