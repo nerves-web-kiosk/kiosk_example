@@ -10,13 +10,27 @@ defmodule KioskDemoWeb.Telemetry do
   def init(_arg) do
     children = [
       # Telemetry poller will execute the given period measurements
-      # every 10_000ms. Learn more here: https://telemetry-metrics.hexdocs.pm
-      {:telemetry_poller, measurements: periodic_measurements(), period: 10_000}
+      # every 1_000ms. Learn more here: https://telemetry-metrics.hexdocs.pm
+      {:telemetry_poller, measurements: periodic_measurements(), period: 1_000}
       # Add reporters as children of your supervision tree.
       # {Telemetry.Metrics.ConsoleReporter, metrics: metrics()}
     ]
 
     Supervisor.init(children, strategy: :one_for_one)
+  end
+
+  @doc """
+  System metrics surfaced on the LiveDashboard.
+
+  The home page samples these values live and in-memory; these last_value
+  metrics just feed the dashboard.
+  """
+  def system_metrics do
+    [
+      last_value("kiosk_demo.system.cpu_util", unit: :percent),
+      last_value("kiosk_demo.system.memory_used_bytes", unit: {:byte, :megabyte}),
+      last_value("kiosk_demo.system.load_avg_1")
+    ]
   end
 
   def metrics do
@@ -80,14 +94,12 @@ defmodule KioskDemoWeb.Telemetry do
       summary("vm.total_run_queue_lengths.total"),
       summary("vm.total_run_queue_lengths.cpu"),
       summary("vm.total_run_queue_lengths.io")
-    ]
+    ] ++ system_metrics()
   end
 
   defp periodic_measurements do
     [
-      # A module, function and arguments to be invoked periodically.
-      # This function must call :telemetry.execute/3 and a metric must be added above.
-      # {KioskDemoWeb, :count_users, []}
+      {KioskDemo.SystemMetrics, :measure, []}
     ]
   end
 end

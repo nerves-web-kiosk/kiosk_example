@@ -121,3 +121,13 @@ transform=rotate-270
 
 The original source is available [here](https://gitlab.freedesktop.org/wayland/weston/-/blob/main/man/weston.ini.man),
 but it's not very human-readable. For a more readable version, see [this man page](https://manpages.ubuntu.com/manpages/noble/man5/weston.ini.5.html).
+
+## Web fonts
+
+Fonts are vendored as `.ttf` in `priv/static/fonts/` and served by
+`Plug.Static` at `/fonts/...` (see `KioskDemoWeb.static_paths/0`). Plain
+`.ttf`/`.otf` skips WOFF* decompression in the browser, and SquashFS already
+compresses the firmware contents.
+
+Declare each face with `@font-face` in `assets/css/app.css`. To make a font
+the default everywhere, set the `--default-font-family` variable on `:root`.

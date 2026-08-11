@@ -102,4 +102,106 @@
 /* Make LiveView wrapper divs transparent for layout */
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 
+@font-face {
+  font-family: "Nunito";
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url("/fonts/Nunito-300.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Nunito";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/Nunito-400.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Nunito";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/fonts/Nunito-600.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Nunito";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/Nunito-700.ttf") format("truetype");
+}
+
+:root {
+  --default-font-family: "Nunito", "Helvetica Neue", "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+html, body {
+  font-family: "Nunito", "Helvetica Neue", "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-feature-settings: "kern", "liga";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+@font-face {
+  font-family: "Poppins";
+  font-style: normal;
+  font-weight: 100;
+  font-display: swap;
+  src: url("/fonts/Poppins-100.ttf") format("truetype");
+}
+
+/* Screensaver overlay — display:none when inactive so its always-on
+   backdrop-filter doesn't tax the compositor on every chart frame.
+   Activation: the JS hook adds `.is-blurring` one frame after
+   `.is-active` mounts the element, so the browser paints the zero-blur
+   state first and then transitions into blur over 14s. */
+#screensaver {
+  display: none;
+}
+
+#screensaver.is-active {
+  display: block;
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  pointer-events: auto;
+  cursor: pointer;
+  background-color: rgba(0, 0, 0, 0);
+  backdrop-filter: blur(0px) saturate(100%);
+  -webkit-backdrop-filter: blur(0px) saturate(100%);
+  transition:
+    background-color 14s ease-out,
+    backdrop-filter 14s ease-out,
+    -webkit-backdrop-filter 14s ease-out;
+}
+
+#screensaver.is-active.is-blurring {
+  background-color: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(36px) saturate(140%);
+  -webkit-backdrop-filter: blur(36px) saturate(140%);
+}
+
+.fps-counter {
+  position: fixed;
+  top: 8px;
+  right: 8px;
+  z-index: 9999;
+  padding: 4px 10px;
+  font-family: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #d1fae5;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 8px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  pointer-events: none;
+  user-select: none;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+}
+.fps-counter[data-warn="true"] { color: #fde68a; }
+.fps-counter[data-warn="bad"] { color: #fca5a5; }
+
 /* This file is for your main application CSS */

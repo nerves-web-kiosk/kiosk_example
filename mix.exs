@@ -145,10 +145,14 @@ defmodule KioskDemo.MixProject do
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["compile", "tailwind kiosk_demo", "esbuild kiosk_demo"],
       "assets.deploy": [
+        "compile",
         "tailwind kiosk_demo --minify",
         "esbuild kiosk_demo --minify",
         "phx.digest"
-      ]
+      ],
+      # Assets are gitignored build artifacts, so build them before assembling
+      # firmware. Otherwise a clean tree produces firmware with no CSS/JS.
+      firmware: ["assets.deploy", "firmware"]
     ]
   end
 

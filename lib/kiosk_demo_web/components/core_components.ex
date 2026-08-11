@@ -427,29 +427,57 @@ defmodule KioskDemoWeb.CoreComponents do
   @doc """
   Renders a screensaver overlay.
 
+  The overlay is always mounted; pass `:active` to control the blurred
+  state. Transitions slowly into blur (~14s) and quickly back to sharp
+  (~250ms) when dismissed.
+
   ## Examples
 
-      <.screensaver_overlay :if={@screensaver_active} />
+      <.screensaver_overlay active={@screensaver_active} />
   """
+  attr :active, :boolean, default: false
   attr :rest, :global
 
   def screensaver_overlay(assigns) do
     ~H"""
     <div
       id="screensaver"
-      class="fixed inset-0 bg-black z-50 cursor-pointer"
+      phx-hook=".ScreensaverActivation"
+      class={@active && "is-active"}
       phx-click="user_activity"
-      phx-hook="Screensaver"
       {@rest}
     >
-      <img
-        id="screensaver-logo"
-        src={~p"/images/nerves-logo.svg"}
-        alt="Nerves Logo"
-        class="absolute"
-        style="left: 50%; top: 50%; width: 200px; height: 43px;"
-      />
     </div>
+
+    <script :type={Phoenix.LiveView.ColocatedHook} name=".ScreensaverActivation">
+      export default {
+        mounted() {
+          this._wasActive = this.el.classList.contains("is-active");
+          // If we mount already-active (e.g., reconnect mid-blur), skip the
+          // ramp and just sit at full blur.
+          if (this._wasActive) this.el.classList.add("is-blurring");
+        },
+        updated() {
+          const isActive = this.el.classList.contains("is-active");
+          if (isActive && !this._wasActive) {
+            // The element just transitioned from display:none to display:block
+            // (with zero blur). Wait one paint, then add .is-blurring so the
+            // 14s CSS transition into full blur actually runs.
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+              if (this.el.classList.contains("is-active")) {
+                this.el.classList.add("is-blurring");
+              }
+            }));
+          } else if (!isActive && this._wasActive) {
+            // Deactivation: drop the blurring class so we're clean for the
+            // next ramp-in. The element returns to display:none via the
+            // .is-active CSS rule no longer matching.
+            this.el.classList.remove("is-blurring");
+          }
+          this._wasActive = isActive;
+        }
+      }
+    </script>
     """
   end
 

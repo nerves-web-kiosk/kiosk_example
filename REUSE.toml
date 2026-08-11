@@ -23,3 +23,19 @@ path = [
 precedence = "override"
 SPDX-FileCopyrightText = "2021 Buu Nguyen"
 SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = [
+ "priv/static/fonts/Poppins-*.ttf"
+]
+precedence = "override"
+SPDX-FileCopyrightText = "Copyright 2020 The Poppins Project Authors (https://github.com/itfoundry/Poppins)"
+SPDX-License-Identifier = "OFL-1.1"
+
+[[annotations]]
+path = [
+ "priv/static/fonts/Nunito-*.ttf"
+]
+precedence = "override"
+SPDX-FileCopyrightText = "Copyright 2014 The Nunito Project Authors (https://github.com/googlefonts/nunito)"
+SPDX-License-Identifier = "OFL-1.1"

@@ -9,7 +9,7 @@ defmodule KioskDemoWeb.DashboardLive do
   def render(assigns) do
     ~H"""
     <div {screensaver_events()} class="h-screen flex flex-col relative">
-      <.screensaver_overlay :if={@screensaver_active} />
+      <.screensaver_overlay active={@screensaver_active} />
 
       <div class="bg-base-200 border-b border-base-300 px-4 py-3 flex items-center gap-3">
         <a href="/" class="btn btn-sm btn-primary gap-2">

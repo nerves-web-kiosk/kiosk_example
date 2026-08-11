@@ -18,7 +18,7 @@ defmodule KioskDemoWeb.Live.Screensaver do
         def render(assigns) do
           ~H\"\"\"
           <div {screensaver_events()}>
-            <.screensaver_overlay :if={@screensaver_active} />
+            <.screensaver_overlay active={@screensaver_active} />
             <!-- your content -->
           </div>
           \"\"\"

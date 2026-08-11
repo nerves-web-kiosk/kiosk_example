@@ -2,6 +2,14 @@ defmodule KioskDemoWeb.HomeLive do
   use KioskDemoWeb, :live_view
   use KioskDemoWeb.Live.Screensaver
 
+  import KioskDemoWeb.Components.MetricChart
+
+  @metrics_refresh_ms 1_000
+  @cpu_chart_id "cpu-chart"
+  @cpu_chart_height 120
+  # Number of samples kept in the rolling in-memory window for the chart.
+  @metrics_window_points 120
+
   def mount(_params, _session, socket) do
     {:ok, name} = :inet.gethostname()
 
@@ -13,16 +21,38 @@ defmodule KioskDemoWeb.HomeLive do
 
     if connected?(socket) do
       _ = Process.send_after(self(), :refresh_ip_addresses, 10_000)
+      _ = Process.send_after(self(), :refresh_metrics, @metrics_refresh_ms)
       :ok
     end
+
+    metrics = initial_metrics()
 
     socket =
       socket
       |> assign(:hostname, to_string(name))
       |> assign(:system_info, system_info)
+      |> assign(:metrics, metrics)
+      |> assign(:system_info_expanded, true)
+      |> assign(:cpu_chart_id, @cpu_chart_id)
+      |> assign(:cpu_chart_height, @cpu_chart_height)
       |> init_screensaver()
+      |> push_cpu_chart(metrics)
 
     {:ok, socket}
+  end
+
+  def handle_event("font_diag", info, socket) do
+    require Logger
+    Logger.info("[FontDiag] #{inspect(info)}")
+    {:noreply, socket}
+  end
+
+  def handle_event("toggle_system_info", _params, socket) do
+    socket =
+      socket
+      |> assign(:system_info_expanded, not socket.assigns.system_info_expanded)
+
+    {:noreply, KioskDemoWeb.Live.Screensaver.handle_user_activity(socket)}
   end
 
   defp get_serial_number do
@@ -83,229 +113,359 @@ defmodule KioskDemoWeb.HomeLive do
     {:noreply, assign(socket, :system_info, updated_system_info)}
   end
 
+  def handle_info(:refresh_metrics, socket) do
+    Process.send_after(self(), :refresh_metrics, @metrics_refresh_ms)
+    metrics = push_sample(socket.assigns.metrics, KioskDemo.SystemMetrics.sample())
+    {:noreply, socket |> assign(:metrics, metrics) |> push_cpu_chart(metrics)}
+  end
+
+  defp push_cpu_chart(socket, metrics) do
+    if socket.assigns.screensaver_active do
+      # Skip the push while the screensaver covers the chart. The hook's
+      # rAF loop winds down within ~1s once it stops getting fresh targets,
+      # so CPU drops to zero shortly after activation.
+      socket
+    else
+      layers =
+        KioskDemoWeb.Components.MetricChart.build_layers(%{
+          series: metrics.cpu,
+          overlays: [
+            %{series: metrics.memory, fill: "#334155", height_scale: 0.95},
+            %{series: metrics.load_avg, fill: "#475569", height_scale: 0.65}
+          ],
+          height: @cpu_chart_height,
+          light_color: "#f8fafc",
+          min: 0,
+          max: 100,
+          height_scale: 0.35
+        })
+
+      push_event(socket, "chart:" <> @cpu_chart_id, %{layers: layers})
+    end
+  end
+
+  # Metrics are sampled live and kept only in this process's memory — no
+  # persistence. Each tick appends the current reading and drops the oldest
+  # once the window is full.
+  #
+  # Seed every series with a full window of the first reading. The canvas
+  # chart's smooth scroll assumes a constant point count (its step is
+  # `width / point_count`); a buffer that grows from empty re-spaces the whole
+  # line on every push, which reads as horizontal twitching until it fills.
+  defp initial_metrics() do
+    %{cpu_util: cpu, memory_used_bytes: memory, load_avg_1: load_avg} =
+      KioskDemo.SystemMetrics.sample()
+
+    %{
+      cpu: full_window(cpu),
+      memory: full_window(memory),
+      load_avg: full_window(load_avg)
+    }
+  end
+
+  defp full_window(value), do: List.duplicate(%{value: value}, @metrics_window_points)
+
+  defp push_sample(metrics, %{cpu_util: cpu, memory_used_bytes: memory, load_avg_1: load_avg}) do
+    %{
+      cpu: append_point(metrics.cpu, cpu),
+      memory: append_point(metrics.memory, memory),
+      load_avg: append_point(metrics.load_avg, load_avg)
+    }
+  end
+
+  defp append_point(series, value) do
+    (series ++ [%{value: value}]) |> Enum.take(-@metrics_window_points)
+  end
+
   def render(assigns) do
     ~H"""
     <style>
-      .card-hover {
-        transition: transform 0.2s ease-out;
-      }
-
-      .card-hover:hover {
-        transform: translateY(-2px);
-      }
-
       .icon-container {
-        border-radius: 12px;
-        padding: 8px;
+        background-color: #42A7C6;
+        border-radius: 10px;
+        padding: 6px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        flex: 0 0 auto;
       }
 
-      .icon-container.dashboard {
-        background-color: #f5576c;
+      .kiosk-hero-dark {
+        position: relative;
+        background-color: #000;
+        overflow: hidden;
+        isolation: isolate;
       }
 
-      .icon-container.gpio {
-        background-color: #00d4ff;
+      .kiosk-hero-dark > * {
+        position: relative;
+        z-index: 1;
       }
 
-      .icon-container.ssh {
-        background-color: #38f9d7;
+      .kiosk-body-light {
+        position: relative;
+        background-color: #f8fafc;
+        overflow: hidden;
+        isolation: isolate;
       }
 
-      .icon-container.system {
-        background-color: #ff9a56;
+      .kiosk-body-light::before {
+        content: "";
+        position: absolute;
+        inset: -20%;
+        z-index: -1;
+        pointer-events: none;
+        background-image:
+          radial-gradient(ellipse 35% 35% at 85% 75%, oklch(75% 0.14 245 / 0.45), transparent 70%),
+          radial-gradient(ellipse 30% 28% at 70% 80%, oklch(78% 0.12 225 / 0.38), transparent 65%),
+          radial-gradient(ellipse 28% 32% at 90% 55%, oklch(83% 0.10 210 / 0.30), transparent 60%),
+          radial-gradient(ellipse 25% 22% at 15% 30%, oklch(80% 0.09 290 / 0.30), transparent 60%),
+          radial-gradient(ellipse 25% 22% at 60% 70%, oklch(80% 0.09 255 / 0.25), transparent 60%);
       }
 
-      .icon-container.info {
-        background-color: #66d9ef;
+      .block-row {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        align-items: center;
+        gap: 1rem;
+        padding: 0.75rem 0.25rem;
+      }
+
+      .block-row.top {
+        align-items: start;
+      }
+
+      .block-body {
+        grid-column: 1 / -1;
+      }
+
+      .nerves-blue {
+        color: #33647E;
+      }
+
+      .btn-cta {
+        min-width: 13rem;
+        justify-content: center;
+      }
+
+      .kiosk-title {
+        font-family: "Poppins", "Helvetica Neue", "Segoe UI", system-ui, -apple-system, sans-serif;
+        font-weight: 100;
+        font-size: clamp(2.75rem, 5.5vw, 4.75rem);
+        line-height: 1.1;
+        letter-spacing: 0;
       }
     </style>
 
     <div
       {screensaver_events()}
-      class="relative min-h-screen bg-slate-50"
+      class="relative min-h-screen flex flex-col"
     >
-      <.screensaver_overlay :if={@screensaver_active} />
+      <div id="fps-counter" class="fps-counter" phx-hook=".FpsCounter" phx-update="ignore">--</div>
+      <script :type={Phoenix.LiveView.ColocatedHook} name=".FpsCounter">
+        export default {
+          mounted() {
+            let last = performance.now();
+            let frames = 0;
+            const el = this.el;
+            const tick = (now) => {
+              frames++;
+              const elapsed = now - last;
+              if (elapsed >= 500) {
+                const fps = frames * 1000 / elapsed;
+                el.textContent = fps.toFixed(0);
+                el.dataset.warn = fps < 30 ? "bad" : (fps < 55 ? "true" : "false");
+                frames = 0;
+                last = now;
+              }
+              this._raf = requestAnimationFrame(tick);
+            };
+            this._raf = requestAnimationFrame(tick);
 
-      <div class="px-4 py-10 sm:px-6 sm:py-12 lg:px-8 xl:px-28 xl:py-16">
-        <div class="mx-auto max-w-6xl">
-          <div class="text-center mb-16">
-            <div class="inline-block bg-gradient-to-r from-indigo-600 to-purple-600 rounded-3xl px-8 py-12 mb-6 shadow-lg">
-              <h1 class="text-5xl font-bold text-white mb-3 tracking-tight">
-                Nerves Web Kiosk
-              </h1>
-              <p class="text-white/90 text-lg font-medium">
-                Powered by Phoenix LiveView & Nerves
-              </p>
+            // Detailed font diagnostic: try to actively load each face and report
+            // the resulting status / error from the FontFace objects, plus a
+            // direct fetch() to confirm the woff2 URL is reachable from this
+            // browsing context.
+            if (document.fonts) {
+              const specs = ["100 16px Poppins", "400 16px Poppins", "400 16px Nunito"];
+              const results = {};
+              Promise.all(specs.map(s =>
+                document.fonts.load(s).then(faces => {
+                  results[s] = {count: faces.length, status: faces.map(f => f.status)};
+                }).catch(e => { results[s] = {error: String(e), name: e.name}; })
+              )).then(async () => {
+                // Direct fetch test for the woff2 files
+                const urls = ["/fonts/Poppins-100.woff2", "/fonts/Nunito-Variable.woff2"];
+                const fetches = {};
+                for (const u of urls) {
+                  try {
+                    const r = await fetch(u);
+                    const buf = await r.arrayBuffer();
+                    fetches[u] = {status: r.status, bytes: buf.byteLength, ct: r.headers.get("content-type")};
+                  } catch (e) {
+                    fetches[u] = {error: String(e)};
+                  }
+                }
+                this.pushEvent("font_diag", {
+                  loads: results,
+                  fetches,
+                  size: document.fonts.size,
+                  ua: navigator.userAgent
+                });
+              });
+            }
+          },
+          destroyed() {
+            if (this._raf) cancelAnimationFrame(this._raf);
+          }
+        }
+      </script>
+      <.screensaver_overlay active={@screensaver_active} />
+
+      <section class="kiosk-hero-dark">
+        <div class="px-4 pt-16 pb-20 sm:px-6 sm:pt-20 sm:pb-24 lg:px-8 xl:px-28 xl:pt-24 xl:pb-32">
+          <div class="mx-auto max-w-6xl text-center">
+            <h1 class="kiosk-title text-slate-100">
+              Nerves Web Kiosk
+            </h1>
+          </div>
+        </div>
+        <div role="separator" aria-label="Live CPU usage" class="block leading-none">
+          <.line_chart
+            id={@cpu_chart_id}
+            dark_color="#000000"
+            height={@cpu_chart_height}
+            update_interval_ms={1_000}
+          />
+        </div>
+      </section>
+
+      <div class="kiosk-body-light flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-8 xl:px-28 xl:py-10">
+        <div class="mx-auto max-w-6xl space-y-3">
+          <div class="block-row">
+            <div class="icon-container">
+              <.icon name="hero-chart-bar" class="size-6 text-white" />
             </div>
-
-            <p class="mt-6 text-xl text-slate-700 max-w-2xl mx-auto leading-relaxed">
-              A full-screen web browser experience with real-time capabilities,
-              running on embedded hardware
-            </p>
+            <p class="text-xl font-bold text-slate-800">Phoenix LiveDashboard</p>
+            <a href="/dashboard" class="btn btn-primary btn-cta">
+              Open Dashboard <.icon name="hero-arrow-right" class="size-4" />
+            </a>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="card-hover rounded-2xl bg-white shadow-md p-6 border border-slate-200">
-              <div class="flex items-center gap-3 mb-4">
-                <div class="icon-container dashboard">
-                  <.icon name="hero-chart-bar" class="size-6 text-white" />
-                </div>
-                <p class="text-xl font-bold text-slate-800">Phoenix LiveDashboard</p>
-              </div>
-              <p class="mt-3 text-slate-600 leading-relaxed">
-                View real-time metrics, introspect processes, and monitor your application's
-                performance with interactive visualizations.
-              </p>
+          <div class="block-row">
+            <div class="icon-container">
+              <.icon name="hero-bolt" class="size-6 text-white" />
+            </div>
+            <p class="text-xl font-bold text-slate-800">GPIO Control</p>
+            <a href="/gpio" class="btn btn-primary btn-cta">
+              Open GPIO Control <.icon name="hero-arrow-right" class="size-4" />
+            </a>
+          </div>
+
+          <div class="block-row">
+            <div class="icon-container">
+              <.icon name="hero-computer-desktop" class="size-6 text-white" />
+            </div>
+            <p class="text-xl font-bold text-slate-800">SSH Access</p>
+            <span class="text-sm text-slate-600">
+              password:
+              <span class="font-bold text-slate-800 bg-yellow-100 px-2 py-1 rounded">kiosk</span>
+            </span>
+            <pre class="block-body bg-slate-900 text-green-400 px-4 py-3 rounded-lg text-sm font-mono"><code>ssh kiosk@{(@hostname || "nerves-xxxx")}.local</code></pre>
+          </div>
+
+          <div class="block-row">
+            <div class="icon-container">
+              <.icon name="hero-cpu-chip" class="size-6 text-white" />
+            </div>
+            <p class="text-xl font-bold text-slate-800">System Information</p>
+            <button
+              type="button"
+              phx-click="toggle_system_info"
+              class="btn btn-ghost btn-cta"
+              aria-expanded={to_string(@system_info_expanded)}
+            >
+              <%= if @system_info_expanded do %>
+                Hide <.icon name="hero-chevron-up" class="size-4" />
+              <% else %>
+                Show <.icon name="hero-chevron-down" class="size-4" />
+              <% end %>
+            </button>
+            <div :if={@system_info_expanded} class="block-body">
+              <table class="w-full text-sm">
+                <tbody class="divide-y divide-slate-200">
+                  <tr>
+                    <td class="py-2 pr-4 font-semibold text-slate-700">Serial Number</td>
+                    <td class="py-2 text-slate-900 break-all font-mono text-xs">
+                      {@system_info.serial_number}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="py-2 pr-4 font-semibold text-slate-700">Architecture</td>
+                    <td class="py-2 text-slate-900">{@system_info.firmware.architecture}</td>
+                  </tr>
+                  <tr>
+                    <td class="py-2 pr-4 font-semibold text-slate-700">Platform</td>
+                    <td class="py-2 text-slate-900">{@system_info.firmware.platform}</td>
+                  </tr>
+                  <tr>
+                    <td class="py-2 pr-4 font-semibold text-slate-700">Version</td>
+                    <td class="py-2 text-slate-900">{@system_info.firmware.version}</td>
+                  </tr>
+                  <tr>
+                    <td class="py-2 pr-4 font-semibold text-slate-700">Description</td>
+                    <td class="py-2 text-slate-900">{@system_info.firmware.description}</td>
+                  </tr>
+                  <%= if length(@system_info.ip_addresses) > 0 do %>
+                    <tr>
+                      <td class="py-2 pr-4 font-semibold text-slate-700 align-top">IP Addresses</td>
+                      <td class="py-2 text-slate-900">
+                        <div class="space-y-1">
+                          <%= for ip <- @system_info.ip_addresses do %>
+                            <div class="flex items-center gap-2">
+                              <span class="font-mono text-xs bg-slate-100 px-2 py-1 rounded">
+                                {ip.address}
+                              </span>
+                              <span class="text-xs text-slate-500">({ip.interface})</span>
+                            </div>
+                          <% end %>
+                        </div>
+                      </td>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="block-row top">
+            <div class="icon-container">
+              <.icon name="hero-information-circle" class="size-6 text-white" />
+            </div>
+            <div class="min-w-0 flex flex-col gap-2">
+              <p class="text-xl font-bold text-slate-800 leading-tight">Learn More</p>
               <a
-                href="/dashboard"
-                class="btn btn-primary mt-4 w-full"
+                href="https://github.com/nerves-web-kiosk/kiosk_demo"
+                target="_blank"
+                class="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 text-sm font-medium truncate"
               >
-                <.icon name="hero-arrow-right" class="size-5" /> Open Dashboard
+                <.icon name="hero-arrow-top-right-on-square" class="size-4" />
+                github.com/nerves-web-kiosk/kiosk_demo
               </a>
             </div>
-
-            <div class="card-hover rounded-2xl bg-white shadow-md p-6 border border-slate-200">
-              <div class="flex items-center gap-3 mb-4">
-                <div class="icon-container gpio">
-                  <.icon name="hero-bolt" class="size-6 text-white" />
-                </div>
-                <p class="text-xl font-bold text-slate-800">GPIO Control</p>
-              </div>
-              <p class="mt-3 text-slate-600 leading-relaxed">
-                Interact with hardware GPIO pins directly from your browser. Control outputs
-                and monitor inputs in real-time.
-              </p>
-              <a
-                href="/gpio"
-                class="btn btn-primary mt-4 w-full"
-              >
-                <.icon name="hero-arrow-right" class="size-5" /> Open GPIO Control
-              </a>
-            </div>
-
-            <div class="card-hover rounded-2xl bg-white shadow-md p-6 border border-slate-200">
-              <div class="flex items-center gap-3 mb-4">
-                <div class="icon-container ssh">
-                  <.icon name="hero-computer-desktop" class="size-6 text-white" />
-                </div>
-                <p class="text-xl font-bold text-slate-800">SSH Access</p>
-              </div>
-              <p class="mt-3 text-slate-600 mb-4 leading-relaxed">
-                Connect via SSH to access an IEx shell for debugging and system management:
-              </p>
-              <pre class="bg-slate-900 text-green-400 p-4 rounded-lg text-sm font-mono"><code>ssh kiosk@{(@hostname || "nerves-xxxx")}.local</code></pre>
-              <div class="mt-4 bg-slate-50 p-3 rounded-lg border border-slate-200">
-                <p class="text-sm text-slate-600">
-                  Default password:
-                  <span class="font-bold text-slate-800 bg-yellow-100 px-2 py-1 rounded">kiosk</span>
-                </p>
-              </div>
-            </div>
-
-            <div class="card-hover rounded-2xl bg-white shadow-md p-6 border border-slate-200">
-              <div class="flex items-center gap-3 mb-4">
-                <div class="icon-container system">
-                  <.icon name="hero-cpu-chip" class="size-6 text-white" />
-                </div>
-                <p class="text-xl font-bold text-slate-800">System Information</p>
-              </div>
-              <div class="mt-4">
-                <table class="w-full text-sm">
-                  <tbody class="divide-y divide-slate-200">
-                    <tr class="hover:bg-slate-50">
-                      <td class="py-3 pr-4 font-semibold text-slate-700">Serial Number</td>
-                      <td class="py-3 text-slate-900 break-all font-mono text-xs">
-                        {@system_info.serial_number}
-                      </td>
-                    </tr>
-                    <tr class="hover:bg-slate-50">
-                      <td class="py-3 pr-4 font-semibold text-slate-700">Architecture</td>
-                      <td class="py-3 text-slate-900">
-                        {@system_info.firmware.architecture}
-                      </td>
-                    </tr>
-                    <tr class="hover:bg-slate-50">
-                      <td class="py-3 pr-4 font-semibold text-slate-700">Platform</td>
-                      <td class="py-3 text-slate-900">{@system_info.firmware.platform}</td>
-                    </tr>
-                    <tr class="hover:bg-slate-50">
-                      <td class="py-3 pr-4 font-semibold text-slate-700">Version</td>
-                      <td class="py-3 text-slate-900">{@system_info.firmware.version}</td>
-                    </tr>
-                    <tr class="hover:bg-slate-50">
-                      <td class="py-3 pr-4 font-semibold text-slate-700">Description</td>
-                      <td class="py-3 text-slate-900">
-                        {@system_info.firmware.description}
-                      </td>
-                    </tr>
-                    <%= if length(@system_info.ip_addresses) > 0 do %>
-                      <tr class="hover:bg-slate-50">
-                        <td class="py-3 pr-4 font-semibold text-slate-700 align-top">IP Addresses</td>
-                        <td class="py-3 text-slate-900">
-                          <div class="space-y-1">
-                            <%= for ip <- @system_info.ip_addresses do %>
-                              <div class="flex items-center gap-2">
-                                <span class="font-mono text-xs bg-slate-100 px-2 py-1 rounded">
-                                  {ip.address}
-                                </span>
-                                <span class="text-xs text-slate-500">({ip.interface})</span>
-                              </div>
-                            <% end %>
-                          </div>
-                        </td>
-                      </tr>
-                    <% end %>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div class="card-hover rounded-2xl bg-white shadow-md p-6 border border-slate-200 md:col-span-2">
-              <div class="flex flex-col md:flex-row items-start md:items-center gap-6">
-                <div class="flex-1">
-                  <div class="flex items-center gap-3 mb-4">
-                    <div class="icon-container info">
-                      <.icon name="hero-information-circle" class="size-6 text-white" />
-                    </div>
-                    <p class="text-xl font-bold text-slate-800">Learn More</p>
-                  </div>
-                  <p class="mt-3 text-slate-600 leading-relaxed mb-4">
-                    Source code, documentation, and community support are available on GitHub.
-                    Scan the QR code or visit the repository to get started:
-                  </p>
-                  <a
-                    href="https://github.com/nerves-web-kiosk/kiosk_demo"
-                    target="_blank"
-                    class="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium"
-                  >
-                    <.icon name="hero-arrow-top-right-on-square" class="size-5" />
-                    github.com/nerves-web-kiosk/kiosk_demo
-                  </a>
-                </div>
-                <div class="flex justify-center md:justify-end">
-                  <div class="bg-slate-50 p-4 rounded-xl border-2 border-slate-200">
-                    <img
-                      alt="QR code for source repository"
-                      src={~p"/images/qr_source.png"}
-                      width="160"
-                      height="160"
-                      class="rounded"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
+            <img
+              alt="QR code for source repository"
+              src={~p"/images/qr_source.png"}
+              width="160"
+              height="160"
+              class="rounded-lg block"
+            />
           </div>
 
-          <div class="mt-12 text-center">
-            <p class="text-sm text-slate-500">
-              Built with ❤️ using <span class="font-semibold text-purple-600">Elixir</span>, <span class="font-semibold text-orange-600">Phoenix</span>, and
-              <span class="font-semibold text-green-600">Nerves</span>
-            </p>
-          </div>
+          <p class="text-center text-sm text-slate-500 pt-4">
+            Built with ❤️ using <span class="font-semibold text-purple-600">Elixir</span>, <span class="font-semibold text-orange-600">Phoenix</span>, and
+            <span class="font-semibold nerves-blue">Nerves</span>
+          </p>
         </div>
       </div>
     </div>
