@@ -2,6 +2,12 @@ import Config
 
 config :nerves_runtime, startup_guard_enabled: true
 
+config :myelin,
+  trusted_origins: ["http://localhost:4000"],
+  scripts: %{
+    "screensaver" => %{enabled: true, idle: 60}
+  }
+
 # Use Ringlogger as the logger backend and remove :console.
 # See https://ring-logger.hexdocs.pm/readme.html for more information on
 # configuring ring_logger.

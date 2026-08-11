@@ -22,11 +22,12 @@ defmodule KioskDemo.KioskSupervisor do
 
     weston_env = [{"XDG_RUNTIME_DIR", @runtime_dir}]
 
-    cog_env = [
-      {"XDG_RUNTIME_DIR", @runtime_dir},
-      {"WAYLAND_DISPLAY", @wayland_display},
-      {"DBUS_SESSION_BUS_ADDRESS", @dbus_session_bus_address}
-    ]
+    cog_env =
+      [
+        {"XDG_RUNTIME_DIR", @runtime_dir},
+        {"WAYLAND_DISPLAY", @wayland_display},
+        {"DBUS_SESSION_BUS_ADDRESS", @dbus_session_bus_address}
+      ] ++ Myelin.browser_env()
 
     wayland_socket = Path.join(@runtime_dir, @wayland_display)
 
@@ -68,7 +69,7 @@ defmodule KioskDemo.KioskSupervisor do
         {MuonTrap.Daemon,
          [
            "cog",
-           ["--platform=wl", "http://localhost:4000/"],
+           ["--platform=wl", "http://localhost:4000/"] ++ Myelin.browser_args(),
            [
              env: cog_env,
              stderr_to_stdout: true,

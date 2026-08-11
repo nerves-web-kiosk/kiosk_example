@@ -1,6 +1,5 @@
 defmodule KioskDemoWeb.HomeLive do
   use KioskDemoWeb, :live_view
-  use KioskDemoWeb.Live.Screensaver
 
   def mount(_params, _session, socket) do
     {:ok, name} = :inet.gethostname()
@@ -20,7 +19,6 @@ defmodule KioskDemoWeb.HomeLive do
       socket
       |> assign(:hostname, to_string(name))
       |> assign(:system_info, system_info)
-      |> init_screensaver()
 
     {:ok, socket}
   end
@@ -77,6 +75,10 @@ defmodule KioskDemoWeb.HomeLive do
 
   defp extract_address(_ifname, _), do: []
 
+  def handle_event("myelin:" <> _event, _params, socket) do
+    {:noreply, socket}
+  end
+
   def handle_info(:refresh_ip_addresses, socket) do
     updated_system_info = Map.put(socket.assigns.system_info, :ip_addresses, get_ip_addresses())
     Process.send_after(self(), :refresh_ip_addresses, 10_000)
@@ -123,12 +125,7 @@ defmodule KioskDemoWeb.HomeLive do
       }
     </style>
 
-    <div
-      {screensaver_events()}
-      class="relative min-h-screen bg-slate-50"
-    >
-      <.screensaver_overlay :if={@screensaver_active} />
-
+    <div class="relative min-h-screen bg-slate-50">
       <div class="px-4 py-10 sm:px-6 sm:py-12 lg:px-8 xl:px-28 xl:py-16">
         <div class="mx-auto max-w-6xl">
           <div class="text-center mb-16">

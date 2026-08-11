@@ -60,6 +60,7 @@ defmodule KioskDemo.MixProject do
       {:ring_logger, "~> 0.11.0"},
       {:toolshed, "~> 0.5"},
       {:muontrap, "~> 1.8"},
+      {:myelin, "~> 0.1.1"},
       {:mix_tasks_upload_hotswap, "~> 0.1.0"},
       {:circuits_gpio, "~> 2.1"},
       {:dbus, "~> 0.8"},

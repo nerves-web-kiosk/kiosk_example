@@ -370,6 +370,10 @@ defmodule KioskDemoWeb.GPIOLive do
     end
   end
 
+  def handle_event("myelin:" <> _event, _params, socket) do
+    {:noreply, socket}
+  end
+
   def handle_info(:poll_inputs, socket) do
     open_gpios =
       Map.new(socket.assigns.open_gpios, fn {label, gpio_state} ->

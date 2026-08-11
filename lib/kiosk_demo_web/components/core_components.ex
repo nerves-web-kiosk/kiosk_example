@@ -424,35 +424,6 @@ defmodule KioskDemoWeb.CoreComponents do
     """
   end
 
-  @doc """
-  Renders a screensaver overlay.
-
-  ## Examples
-
-      <.screensaver_overlay :if={@screensaver_active} />
-  """
-  attr :rest, :global
-
-  def screensaver_overlay(assigns) do
-    ~H"""
-    <div
-      id="screensaver"
-      class="fixed inset-0 bg-black z-50 cursor-pointer"
-      phx-click="user_activity"
-      phx-hook="Screensaver"
-      {@rest}
-    >
-      <img
-        id="screensaver-logo"
-        src={~p"/images/nerves-logo.svg"}
-        alt="Nerves Logo"
-        class="absolute"
-        style="left: 50%; top: 50%; width: 200px; height: 43px;"
-      />
-    </div>
-    """
-  end
-
   ## JS Commands
 
   def show(js \\ %JS{}, selector) do

@@ -1,16 +1,17 @@
 defmodule KioskDemoWeb.DashboardLive do
   use KioskDemoWeb, :live_view
-  use KioskDemoWeb.Live.Screensaver
 
   def mount(_params, _session, socket) do
-    {:ok, init_screensaver(socket)}
+    {:ok, socket}
+  end
+
+  def handle_event("myelin:" <> _event, _params, socket) do
+    {:noreply, socket}
   end
 
   def render(assigns) do
     ~H"""
-    <div {screensaver_events()} class="h-screen flex flex-col relative">
-      <.screensaver_overlay :if={@screensaver_active} />
-
+    <div class="h-screen flex flex-col relative">
       <div class="bg-base-200 border-b border-base-300 px-4 py-3 flex items-center gap-3">
         <a href="/" class="btn btn-sm btn-primary gap-2">
           <.icon name="hero-home" class="size-4" /> Home
