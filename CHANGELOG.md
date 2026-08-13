@@ -4,6 +4,15 @@
 -->
 # Changelog
 
+## v0.4.2
+
+* Changes
+  * Replace screensaver implementation with Myelin. Myelin is a library that
+    uses WPE WebKit's web extension to add functionality to web pages. This
+    simplifies the screensaver and also makes it work when browsing the general
+    internet. (Thanks to @tomfarm for this library)
+  * Update Nerves systems to Erlang 29.0.4
+
 ## v0.4.1
 
 This release include dependency updates and a fix for RPi5 WPA3 SAE users.
