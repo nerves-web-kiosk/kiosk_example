@@ -12,8 +12,8 @@ This is the example kiosk application for the following Nerves kiosk systems:
 - [kiosk_system_rpi4](https://github.com/nerves-web-kiosk/kiosk_system_rpi4)
 - [kiosk_system_rpi5](https://github.com/nerves-web-kiosk/kiosk_system_rpi5)
 
-It runs a Phoenix LiveView web application full-screen on a Raspberry Pi using a
-Wayland compositor (Weston) and browser (Cog). The home screen shows system
+It runs a Phoenix LiveView web application full-screen on a Raspberry Pi using
+the Cog browser rendered directly to DRM. The home screen shows system
 information, IP addresses, and links to a GPIO control page and Phoenix
 LiveDashboard.
 
@@ -92,32 +92,3 @@ mix phx.server
 
 Then visit <http://localhost:4000>. Hardware-specific features like GPIO will not
 be functional on the host.
-
-## With Raspberry Pi Touch Display 2
-
-To change the screen orientation, use the method described below.
-
-1. Create `rootfs_overlay/etc/xdg/weston/weston.ini`
-2. Edit it like the following:
-
-```ini
-[output]
-name=DSI-1
-mode=720x1280@60.0
-transform=rotate-270
-```
-
-The transform key can be `rotate-(90|180|270)`.
-
-If you're looking at this section, but using an HDMI display, copy this instead:
-
-```ini
-[output]
-name=HDMI-A-1
-transform=rotate-270
-```
-
-## More about weston.ini
-
-The original source is available [here](https://gitlab.freedesktop.org/wayland/weston/-/blob/main/man/weston.ini.man),
-but it's not very human-readable. For a more readable version, see [this man page](https://manpages.ubuntu.com/manpages/noble/man5/weston.ini.5.html).

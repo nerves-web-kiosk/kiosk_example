@@ -3,7 +3,6 @@ defmodule KioskDemo.KioskSupervisor do
   use Supervisor
 
   @runtime_dir "/run"
-  @wayland_display "wayland-1"
   @poll_ms 500
   @max_retries 20
   @drm_dir "/dev/dri"
@@ -20,16 +19,11 @@ defmodule KioskDemo.KioskSupervisor do
   def init(_args) do
     configure_dbus_session_bus()
 
-    weston_env = [{"XDG_RUNTIME_DIR", @runtime_dir}]
-
     cog_env =
       [
         {"XDG_RUNTIME_DIR", @runtime_dir},
-        {"WAYLAND_DISPLAY", @wayland_display},
         {"DBUS_SESSION_BUS_ADDRESS", @dbus_session_bus_address}
       ] ++ Myelin.browser_env()
-
-    wayland_socket = Path.join(@runtime_dir, @wayland_display)
 
     children = [
       Supervisor.child_spec(
@@ -53,23 +47,9 @@ defmodule KioskDemo.KioskSupervisor do
       Supervisor.child_spec(
         {MuonTrap.Daemon,
          [
-           "weston",
-           ["--shell=kiosk", "--continue-without-input"],
-           [
-             env: weston_env,
-             stderr_to_stdout: true,
-             log_output: :info,
-             log_prefix: "weston: ",
-             wait_for: fn -> wait_for_match(@drm_dir, @drm_card_pattern) end
-           ]
-         ]},
-        id: :weston
-      ),
-      Supervisor.child_spec(
-        {MuonTrap.Daemon,
-         [
            "cog",
-           ["--platform=wl", "http://localhost:4000/"] ++ Myelin.browser_args(),
+           ["--platform=drm", "--platform-params=renderer=gles", "http://localhost:4000/"] ++
+             Myelin.browser_args(),
            [
              env: cog_env,
              stderr_to_stdout: true,
@@ -77,7 +57,7 @@ defmodule KioskDemo.KioskSupervisor do
              log_prefix: "cog: ",
              wait_for: fn ->
                wait_for_path(@dbus_socket_path)
-               wait_for_path(wayland_socket)
+               wait_for_match(@drm_dir, @drm_card_pattern)
              end
            ]
          ]},
