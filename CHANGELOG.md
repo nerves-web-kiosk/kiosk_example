@@ -4,6 +4,16 @@
 -->
 # Changelog
 
+## v0.5.0
+
+* Changes
+  * Render directly to DRM and remove the use of Weston. Based on multiple
+    reports from production kiosk users, this provides an important performance
+    boost to their apps. While this doesn't improve the demo, it makes the demo
+    more similar to actual use and perhaps it will enable a more impressive demo
+    in the future. The current Nerves Kiosk systems still include Weston, so
+    this doesn't save firmware size yet.
+
 ## v0.4.2
 
 * Changes
